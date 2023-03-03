@@ -74,6 +74,7 @@ int main() {
 
             std::unordered_map<int, int>& a = mp[index];
             HashMap<int, int>&b = hash_map[index];
+
             if (request.front() == 'i') {
                 int key = get(MIN_KEY, MAX_KEY), val = get(MIN_VALUE, MAX_VALUE);
                 lst.push_back({key, val});
