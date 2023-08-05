@@ -23,44 +23,53 @@ public:
         }
     }
 
-    HashMap (const HashMap& other):hash_(other.hash_) {
-        if (used_ != other.used_) {
-            clear_memory();
-            initial_memory(other.capacity_);
+    HashMap (const HashMap& other):hash_(other.hash_), size_(other.size_), capacity_(other.capacity_) {
+        pairs_ = new std::pair<KeyType, ValueType> [other.capacity_];
+        std::copy(other.pairs_, other.pairs_ + other.capacity_, pairs_);
+        used_ = new uint8_t [other.capacity_];
+        std::copy(other.used_, other.used_ + other.capacity_, used_);
+    }
 
-            for (size_t i = 0; i < capacity_; i++) {
-                if (other.used_[i] == 1) {
-                    check_overload();
-                    create_pair(i, other.pairs_[i].first, other.pairs_[i].second);
-                }
-            }
-        }
+    HashMap (HashMap&& other):hash_(other.hash_), size_(other.size_), capacity_(other.capacity_),
+    used_(other.used_), pairs_(other.pairs_) {
+        other.used_ = nullptr;
+        other.pairs_ = nullptr;
     }
 
     HashMap& operator=(const HashMap& other) {
-        if (used_ != other.used_) {
-            clear_memory();
-            initial_memory(other.capacity_);
+        if (this == &other) {
+            return *this;
+        }
+        clear_memory();
+        initial_memory(other.capacity_);
 
-            for (size_t i = 0; i < capacity_; i++) {
-                if (other.used_[i] == 1) {
-                    check_overload();
-                    create_pair(i, other.pairs_[i].first, other.pairs_[i].second);
-                }
+        for (size_t i = 0; i < capacity_; i++) {
+            if (other.used_[i] == 1) {
+                check_overload();
+                create_pair(i, other.pairs_[i].first, other.pairs_[i].second);
             }
         }
         return *this;
     }
 
+    HashMap& operator=(HashMap&& other) {
+        if (this == &other) {
+            return *this;
+        }
+        clear_memory();
+        std::swap(used_, other.used_);
+        std::swap(pairs_, other.pairs_);
+        std::swap(size_, other.size_);
+        std::swap(capacity_, other.capacity_);
+        std::swap(hash_, other.hash_);
+        return *this;
+    }
+
     ~HashMap() {
         delete []used_;
-        delete []new_used_;
         delete []pairs_;
-        delete []new_pairs_;
         used_ = nullptr;
-        new_used_ = nullptr;
         pairs_ = nullptr;
-        new_pairs_ = nullptr;
     }
 
     void insert(const std::pair<KeyType, ValueType>& item) {
@@ -190,12 +199,12 @@ public:
             return cur;
         }
 
-        friend bool operator==(const const_iterator &a, const const_iterator &b) {
-            return a.ptr_used_ == b.ptr_used_ && a.ptr_pair_ == b.ptr_pair_;
+        bool operator==(const const_iterator &other) {
+            return ptr_used_ == other.ptr_used_ && ptr_pair_ == other.ptr_pair_;
         }
 
-        friend bool operator!=(const const_iterator &a, const const_iterator &b) {
-            return a.ptr_used_ != b.ptr_used_ || a.ptr_pair_ != b.ptr_pair_;
+        bool operator!=(const const_iterator &other) {
+            return ptr_used_ != other.ptr_used_ || ptr_pair_ != other.ptr_pair_;
         }
 
     private:
@@ -248,11 +257,10 @@ private:
     constexpr static const size_t TOP_LOAD_FACTOR = 50;
     constexpr static const size_t MAX_PERCENT = 100;
     Hash hash_;
-    std::pair<KeyType, ValueType>* pairs_, *new_pairs_;
+    std::pair<KeyType, ValueType>* pairs_ = nullptr;
     size_t size_;
     size_t capacity_;
     uint8_t * used_ = nullptr;
-    uint8_t * new_used_ = nullptr;
     void initial_memory(size_t new_capacity) {
         pairs_ = new std::pair<KeyType, ValueType> [new_capacity];
         size_ = 0;
@@ -326,25 +334,23 @@ private:
 
     void rebuild(size_t new_capacity) {
         size_t new_size = 0;
-        new_used_ = new uint8_t [new_capacity];
+        auto new_used = new uint8_t [new_capacity];
         for (size_t i = 0; i < new_capacity; i++) {
-            new_used_[i] = 0;
+            new_used[i] = 0;
         }
-        new_pairs_ = new std::pair<KeyType, ValueType> [new_capacity];
+       auto new_pairs = new std::pair<KeyType, ValueType> [new_capacity];
 
         std::swap(new_capacity, capacity_);
         std::swap(new_size, size_);
-        std::swap(new_used_, used_);
-        std::swap(new_pairs_, pairs_);
+        std::swap(new_used, used_);
+        std::swap(new_pairs, pairs_);
         for (size_t i = 0; i < new_capacity; i++) {
-            if (new_used_[i] == 1) {
-                size_t index = find_position(new_pairs_[i].first);
-                create_pair(index, new_pairs_[i].first, new_pairs_[i].second);
+            if (new_used[i] == 1) {
+                size_t index = find_position(new_pairs[i].first);
+                create_pair(index, new_pairs[i].first, new_pairs[i].second);
             }
         }
-        delete []new_used_;
-        new_used_ = nullptr;
-        delete []new_pairs_;
-        new_pairs_ = nullptr;
+        delete []new_used;
+        delete []new_pairs;
     }
 };
